@@ -1,0 +1,148 @@
+/* ==========================================================================
+   FaceForge AI - Model Explorer View Styles
+   Botanica Theme: Neural Architecture Inspector, Math Formulas, Layer Visualizer
+   ========================================================================== */
+
+/* Network Tab Switcher */
+.model-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0.5rem;
+}
+
+.model-tab-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.model-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.model-tab-btn.active {
+  color: var(--accent-primary);
+  font-weight: 800;
+}
+
+.model-tab-btn.active::after {
+  content: "";
+  position: absolute;
+  bottom: -0.5rem;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary-glow);
+}
+
+/* Architecture Specs Overview */
+.arch-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.arch-stat-box {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.arch-stat-num {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  font-family: var(--font-family-mono);
+  color: var(--accent-secondary);
+}
+
+/* Layer Table */
+.layer-table-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.layer-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.layer-table th {
+  padding: 0.85rem 1rem;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: #FAF8F2;
+}
+
+.layer-table td {
+  padding: 1rem;
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.layer-table tr:hover td {
+  background-color: #F1F6F0;
+}
+
+/* Math Formulation Card */
+.math-card {
+  background: radial-gradient(circle at top left, rgba(200, 122, 56, 0.08), transparent 70%),
+              var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.equation-box {
+  background-color: #FAF8F2;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin: 1.25rem 0;
+  text-align: center;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-base);
+  color: var(--accent-primary);
+  font-weight: 700;
+  overflow-x: auto;
+  letter-spacing: 0.02em;
+}
+
+.math-explanation {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+}
+
+.math-explanation ul {
+  margin-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.math-explanation li {
+  margin-bottom: 0.4rem;
+}

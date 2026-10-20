@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FaceForge AI — Face Image Generation Using GANs</title>
+  <meta name="description" content="Academic Deep Learning & GAN Laboratory for synthetic human facial image generation using Deep Convolutional Generative Adversarial Networks (DCGAN).">
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Persistent Desktop Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9c.83 0 1.5-.67 1.5-1.5S7.83 8 7 8s-1.5.67-1.5 1.5S6.17 11 7 11zm10 0c.83 0 1.5-.67 1.5-1.5S17.83 8 17 8s-1.5.67-1.5 1.5.67 1.5 1.5 1.5zm-5 5.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+        </div>
+        <div class="brand-title">FaceForge AI</div>
+        <span class="brand-badge">GAN</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Systems</div>
+        <a href="/dashboard" class="nav-item active">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a href="/studio" class="nav-item">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          <span>Face Studio</span>
+        </a>
+        <a href="/gallery" class="nav-item">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Gallery</span>
+        </a>
+
+        <div class="nav-section-title">Deep Learning Lab</div>
+        <a href="/model-explorer" class="nav-item">
+          <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Model Architecture</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content Canvas -->
+    <div class="app-main">
+      <!-- Top Navigation Bar -->
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Toggle navigation menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <h1 class="page-title">Research Dashboard</h1>
+        </div>
+        <div class="topbar-right">
+          <div id="systemDeviceBadge" class="device-badge">
+            <span class="dot"></span> CPU
+          </div>
+          <a href="/studio" class="btn btn-primary btn-sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Generate Face
+          </a>
+        </div>
+      </header>
+
+      <!-- Main Container -->
+      <main class="app-content">
+        <!-- Hero Section -->
+        <section class="hero-banner">
+          <div class="hero-content">
+            <div class="hero-tag">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Computer Science & Engineering Capstone
+            </div>
+            <h2 class="hero-title">Synthesizing Human Faces with <span>Adversarial AI</span></h2>
+            <p class="hero-desc">
+              FaceForge AI demonstrates facial image synthesis using Deep Convolutional Generative Adversarial Networks (DCGAN) trained on the CelebA benchmark. Explore latent vector spaces, evaluate generative convergence, and examine min-max game theory dynamics.
+            </p>
+            <div class="hero-actions">
+              <a href="/studio" class="btn btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Open Face Studio
+              </a>
+              <a href="/model-explorer" class="btn btn-secondary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                Model Architecture
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Real Metrics Grid -->
+        <section class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-violet">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div>
+              <div id="statTotalGen" class="stat-value">0</div>
+              <div class="stat-label">Total Generated Faces</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-cyan">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <div id="statAvgDuration" class="stat-value">0 ms</div>
+              <div class="stat-label">Avg Generation Latency</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-emerald">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div>
+              <div id="statSavedCount" class="stat-value">0</div>
+              <div class="stat-label">Saved to Gallery</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon-amber">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div>
+              <div class="stat-value">100-D</div>
+              <div class="stat-label">Latent Gaussian Space</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Interactive GAN Workflow Visualization -->
+        <section class="workflow-section">
+          <div class="workflow-header">
+            <div>
+              <h3>Adversarial Training & Inference Pipeline</h3>
+              <p class="text-muted" style="margin-bottom: 0;">Interactive dataflow illustrating Generator synthesis and Discriminator classification.</p>
+            </div>
+            <span class="badge badge-cyan">Minimax Game V(D, G)</span>
+          </div>
+
+          <div class="workflow-diagram">
+            <!-- Node 1: Latent Vector -->
+            <div class="workflow-node">
+              <div class="node-icon stat-icon-violet">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              </div>
+              <div class="node-title">Latent Vector (z)</div>
+              <div class="node-subtitle">z ~ N(0, I) &bull; R^100</div>
+            </div>
+
+            <!-- Arrow 1 -->
+            <div class="workflow-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <!-- Node 2: Generator -->
+            <div class="workflow-node" style="border-color: rgba(43, 68, 38, 0.35);">
+              <div class="node-icon stat-icon-violet">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </div>
+              <div class="node-title">Generator G(z)</div>
+              <div class="node-subtitle">5x ConvTranspose2d</div>
+            </div>
+
+            <!-- Arrow 2 -->
+            <div class="workflow-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <!-- Node 3: Synthetic Face -->
+            <div class="workflow-node" style="border-color: rgba(200, 122, 56, 0.35);">
+              <div class="node-icon stat-icon-cyan">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              </div>
+              <div class="node-title">Synthetic Face</div>
+              <div class="node-subtitle">64x64x3 RGB [-1, 1]</div>
+            </div>
+
+            <!-- Arrow 3 -->
+            <div class="workflow-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <!-- Node 4: Discriminator -->
+            <div class="workflow-node">
+              <div class="node-icon stat-icon-emerald">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <div class="node-title">Discriminator D(x)</div>
+              <div class="node-subtitle">Real vs Fake Classifier</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Recent Generations Feed -->
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Recent Face Generations</h3>
+              <p class="card-subtitle">Real-time records stored in the SQLite database.</p>
+            </div>
+            <a href="/gallery" class="btn btn-outline btn-sm">View Full Gallery &rarr;</a>
+          </div>
+          <div id="recentGenerationsGrid" class="recent-grid">
+            <!-- Populated dynamically by dashboard.js -->
+            <div class="skeleton" style="height: 200px;"></div>
+            <div class="skeleton" style="height: 200px;"></div>
+            <div class="skeleton" style="height: 200px;"></div>
+            <div class="skeleton" style="height: 200px;"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/navigation.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

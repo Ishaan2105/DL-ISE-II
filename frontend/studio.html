@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Studio — FaceForge AI</title>
+  <meta name="description" content="Generate realistic synthetic human faces using deep convolutional generative adversarial networks. Explore seed control and latent morphing.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/studio.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9c.83 0 1.5-.67 1.5-1.5S7.83 8 7 8s-1.5.67-1.5 1.5S6.17 11 7 11zm10 0c.83 0 1.5-.67 1.5-1.5S17.83 8 17 8s-1.5.67-1.5 1.5.67 1.5 1.5 1.5zm-5 5.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+        </div>
+        <div class="brand-title">FaceForge AI</div>
+        <span class="brand-badge">GAN</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Systems</div>
+        <a href="/dashboard" class="nav-item">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a href="/studio" class="nav-item active">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          <span>Face Studio</span>
+        </a>
+        <a href="/gallery" class="nav-item">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Gallery</span>
+        </a>
+
+        <div class="nav-section-title">Deep Learning Lab</div>
+        <a href="/model-explorer" class="nav-item">
+          <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Model Architecture</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Canvas -->
+    <div class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Toggle navigation menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <h1 class="page-title">Face Generation Studio</h1>
+        </div>
+        <div class="topbar-right">
+          <div id="systemDeviceBadge" class="device-badge">
+            <span class="dot"></span> CPU
+          </div>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <div class="studio-grid">
+          <!-- Left Column: Generation Controls -->
+          <div class="studio-controls">
+            <div class="panel-card">
+              <h3 class="panel-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Model Controls
+              </h3>
+
+              <!-- Seed Input -->
+              <div class="form-group">
+                <label for="seedInput" class="form-label">
+                  <span>Random Latent Seed (z)</span>
+                  <span class="text-muted" style="font-size: 0.75rem;">Deterministic</span>
+                </label>
+                <div class="input-dice-wrapper">
+                  <input type="number" id="seedInput" class="form-input font-mono" value="42" min="0" max="2147483647">
+                  <button id="btnRandomSeed" class="btn btn-secondary btn-icon" title="Roll Random Seed" type="button">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Batch Size Toggle -->
+              <div class="form-group">
+                <label class="form-label">Batch Size</label>
+                <div class="btn-toggle-group">
+                  <button type="button" class="toggle-option batch-opt active" data-batch="1">1</button>
+                  <button type="button" class="toggle-option batch-opt" data-batch="2">2</button>
+                  <button type="button" class="toggle-option batch-opt" data-batch="4">4</button>
+                  <button type="button" class="toggle-option batch-opt" data-batch="8">8</button>
+                </div>
+              </div>
+
+              <!-- Resolution Toggle -->
+              <div class="form-group">
+                <label class="form-label">Output Resolution</label>
+                <div class="btn-toggle-group" style="grid-template-columns: 1fr 1fr;">
+                  <button type="button" class="toggle-option res-opt active" data-res="64">64 x 64 (Native)</button>
+                  <button type="button" class="toggle-option res-opt" data-res="128">128 x 128 (Bicubic)</button>
+                </div>
+              </div>
+
+              <!-- Primary Generate Action -->
+              <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
+                <button id="btnGenerate" class="btn btn-primary w-full" type="button" style="padding: 0.85rem;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Generate Synthetic Face
+                </button>
+                <button id="btnGenerateAnother" class="btn btn-secondary w-full" type="button">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  Randomize & Generate Another
+                </button>
+              </div>
+            </div>
+
+            <!-- Latent Space Morphing Explorer -->
+            <div class="panel-card latent-morpher-card">
+              <h3 class="panel-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Latent-Space Morphing
+              </h3>
+              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1rem;">
+                Linearly interpolate between two distinct latent vectors: <code>z(t) = (1-t)z₁ + tz₂</code>
+              </p>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-size: 0.75rem;">Seed 1 (z₁)</label>
+                  <input type="number" id="morphSeed1" class="form-input font-mono" value="10">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="font-size: 0.75rem;">Seed 2 (z₂)</label>
+                  <input type="number" id="morphSeed2" class="form-input font-mono" value="99">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-size: 0.75rem;">Interpolation Steps (3 - 15)</label>
+                <input type="number" id="morphSteps" class="form-input font-mono" value="7" min="3" max="15">
+              </div>
+
+              <button id="btnRunMorph" class="btn btn-secondary w-full" type="button">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                Generate Morph Sequence
+              </button>
+
+              <div id="morphResultsContainer" style="display: none; margin-top: 1rem;">
+                <div class="morpher-strip-container">
+                  <img id="morphStripImg" src="" alt="Latent Interpolation Strip" />
+                </div>
+                <button id="btnDownloadStrip" class="btn btn-outline btn-sm w-full" style="margin-top: 0.5rem;" type="button">
+                  Download Full Strip PNG
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Generation Viewport -->
+          <div class="studio-canvas">
+            <div class="viewport-card">
+              <!-- Animated Loading Overlay -->
+              <div id="generatorLoader" class="generator-loader">
+                <div class="spinner spinner-lg"></div>
+                <div class="loader-text">Executing DCGAN PyTorch Forward Pass...</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Sampling z ~ N(0, I) &bull; Evaluating ConvTranspose2d</div>
+              </div>
+
+              <!-- Image Display Frame -->
+              <div id="viewportFrame" class="viewport-frame">
+                <div id="viewportPlaceholder" class="viewport-placeholder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                    <line x1="9" y1="9" x2="9.01" y2="9"/>
+                    <line x1="15" y1="9" x2="15.01" y2="9"/>
+                  </svg>
+                  <p>Ready to synthesize.</p>
+                  <span class="text-muted" style="font-size: 0.75rem;">Click 'Generate Synthetic Face' to run the neural network.</span>
+                </div>
+                <img id="viewportImg" class="viewport-image" src="" alt="Generated Face" style="display: none;" />
+              </div>
+
+              <!-- Metadata Pills Bar -->
+              <div id="metadataBar" class="metadata-bar" style="display: none;">
+                <div class="meta-pill">Seed: <strong id="metaSeed">—</strong></div>
+                <div class="meta-pill">Res: <strong id="metaRes">—</strong></div>
+                <div class="meta-pill">Latency: <strong id="metaDuration">—</strong></div>
+                <div class="meta-pill">Device: <strong id="metaDevice">—</strong></div>
+                <div class="meta-pill">Model: <strong id="metaModel">—</strong></div>
+              </div>
+
+              <!-- Actions -->
+              <div class="studio-actions-bar">
+                <button id="btnSaveGallery" class="btn btn-secondary" disabled type="button">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                  Save to Gallery
+                </button>
+                <button id="btnDownloadPng" class="btn btn-cyan" disabled type="button">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download PNG
+                </button>
+              </div>
+
+              <!-- Batch Grid Container (Active when batch_size > 1) -->
+              <div id="batchContainer" style="width: 100%; display: none;">
+                <div class="card-title" style="font-size: 0.85rem; margin-top: 1rem;">Batch Outputs (Click to inspect)</div>
+                <div id="batchGrid" class="batch-results-grid"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/navigation.js"></script>
+  <script src="/js/studio.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Runtime Storage
+storage/generated/*.png
+storage/samples/*.png
+storage/logs/*.log
+storage/faceforge.db
+!storage/generated/.gitkeep
+!storage/samples/.gitkeep
+!storage/logs/.gitkeep
+
+# Checkpoints & Datasets (Large weights)
+checkpoints/*.pth
+data/datasets/*
+!data/datasets/.gitkeep
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

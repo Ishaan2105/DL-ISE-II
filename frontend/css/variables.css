@@ -1,0 +1,100 @@
+/* ==========================================================================
+   FaceForge AI - Design System Tokens & CSS Custom Properties
+   Botanica Theme: Botanical Olive, Black Forest, Cornsilk & Sunlit Copperwood
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Core Surfaces */
+  --bg-main: #F6F4EB;             /* Warm Cornsilk canvas */
+  --bg-secondary: #1A2D19;        /* Deep Black Forest Olive (Sidebar) */
+  --bg-secondary-hover: #243B22;  /* Slightly lighter black forest hover */
+  --bg-secondary-active: #334F30; /* Active sidebar nav pill */
+  --bg-card: #FFFFFF;             /* Clean pure card surface */
+  --bg-card-hover: #FAF8F2;       /* Soft warm cornsilk tint on hover */
+  --bg-elevated: #FAF7EE;         /* Elevated surface */
+  --bg-input: #FFFFFF;            /* Form input background */
+  --bg-glass: rgba(255, 255, 255, 0.88);
+  --bg-glass-elevated: rgba(250, 247, 238, 0.95);
+  --bg-sidebar-footer: #142413;
+
+  /* Primary Brand: Botanical Olive */
+  --accent-primary: #2B4426;          /* Botanical Olive */
+  --accent-primary-hover: #1F331C;    /* Deep Olive hover */
+  --accent-primary-light: #3D5F36;    /* Lighter Olive */
+  --accent-primary-subtle: #E8EFE5;   /* Soft sage tint for active pill selections */
+  --accent-primary-glow: rgba(43, 68, 38, 0.20);
+
+  /* Secondary Brand: Sunlit Copperwood */
+  --accent-secondary: #C87A38;        /* Sunlit Copperwood */
+  --accent-secondary-hover: #B46B2D;  /* Rich Copperwood hover */
+  --accent-secondary-light: #DE9354;  /* Warm amber highlight */
+  --accent-secondary-subtle: #F9EFE4; /* Warm copper/apricot tint */
+  --accent-secondary-glow: rgba(200, 122, 56, 0.22);
+
+  /* Decorative & Accent Badges */
+  --accent-highlight: #476840;        /* Mid olive eucalyptus */
+  --accent-copper: #C87A38;
+  --accent-lavender: #694A9E;         /* Lavender accent from screenshot */
+  --accent-lavender-bg: #EFE9F7;
+
+  /* Text & Typography */
+  --text-primary: #172315;            /* Deep Forest Charcoal */
+  --text-secondary: #4A5847;          /* Earthy Olive Slate */
+  --text-muted: #7A8976;              /* Soft Muted Olive */
+  --text-inverse: #FFFFFF;            /* Pure White for buttons / badges */
+  --text-sidebar: #D1DDD0;            /* Light sage/cornsilk for sidebar links */
+  --text-sidebar-muted: #8F9E8E;      /* Muted sidebar section labels */
+  --text-sidebar-active: #FFFFFF;     /* Pure white for active sidebar item */
+
+  /* Borders & Dividers */
+  --border-subtle: #E5E0D2;           /* Warm Cornsilk Border */
+  --border-card: #E5E0D2;
+  --border-focus: #2B4426;            /* Botanical Olive Focus */
+  --border-accent: rgba(43, 68, 38, 0.35);
+  --border-sidebar: rgba(255, 255, 255, 0.09);
+
+  /* Semantic State Colors */
+  --color-success: #2E7D32;           /* Forest Green */
+  --color-success-bg: #EAF4EB;
+  --color-warning: #B47119;           /* Sunlit Copper/Amber Warning */
+  --color-warning-bg: #FBF1DF;
+  --color-error: #C53929;             /* Terracotta Red */
+  --color-error-bg: #FDEEEB;
+  --color-info: #2A6A78;              /* Forest Teal */
+  --color-info-bg: #E8F4F7;
+
+  /* Elevation & Shadows */
+  --shadow-sm: 0 2px 8px rgba(35, 45, 30, 0.05);
+  --shadow-md: 0 4px 18px rgba(35, 45, 30, 0.08);
+  --shadow-lg: 0 12px 36px rgba(35, 45, 30, 0.12);
+  --shadow-glow: 0 0 22px var(--accent-primary-glow);
+  --shadow-glow-copper: 0 0 22px var(--accent-secondary-glow);
+  --shadow-glow-cyan: 0 0 22px var(--accent-secondary-glow);
+
+  /* Typography Scale */
+  --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  --font-size-xs: 0.75rem;     /* 12px */
+  --font-size-sm: 0.875rem;    /* 14px */
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-lg: 1.125rem;    /* 18px */
+  --font-size-xl: 1.25rem;     /* 20px */
+  --font-size-2xl: 1.5rem;     /* 24px */
+  --font-size-3xl: 1.875rem;   /* 30px */
+  --font-size-4xl: 2.25rem;    /* 36px */
+
+  /* Border Radius (Generous Pill & Curved corners matching screenshot) */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+
+  /* Layout Spacing */
+  --sidebar-width: 260px;
+  --topbar-height: 68px;
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}

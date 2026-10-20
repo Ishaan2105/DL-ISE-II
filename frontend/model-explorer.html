@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Model Explorer — FaceForge AI</title>
+  <meta name="description" content="Technical neural network architectural explorer for Deep Convolutional Generative Adversarial Networks (DCGAN) on facial image synthesis.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/model-explorer.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9c.83 0 1.5-.67 1.5-1.5S7.83 8 7 8s-1.5.67-1.5 1.5S6.17 11 7 11zm10 0c.83 0 1.5-.67 1.5-1.5S17.83 8 17 8s-1.5.67-1.5 1.5.67 1.5 1.5 1.5zm-5 5.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+        </div>
+        <div class="brand-title">FaceForge AI</div>
+        <span class="brand-badge">GAN</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Systems</div>
+        <a href="/dashboard" class="nav-item">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a href="/studio" class="nav-item">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          <span>Face Studio</span>
+        </a>
+        <a href="/gallery" class="nav-item">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Gallery</span>
+        </a>
+
+        <div class="nav-section-title">Deep Learning Lab</div>
+        <a href="/model-explorer" class="nav-item active">
+          <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Model Architecture</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Canvas -->
+    <div class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Toggle navigation menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <h1 class="page-title">GAN Neural Architecture Explorer</h1>
+        </div>
+        <div class="topbar-right">
+          <div id="ckptStatusText"></div>
+          <button id="btnDownloadCkpt" class="btn btn-primary btn-sm" style="display: none;" type="button">Download CelebA Weights</button>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <!-- Tab Switcher -->
+        <div class="model-tabs">
+          <button id="tabGenerator" class="model-tab-btn active" type="button">Generator G(z)</button>
+          <button id="tabDiscriminator" class="model-tab-btn" type="button">Discriminator D(x)</button>
+        </div>
+
+        <!-- Architecture Overview Stat Boxes -->
+        <div class="arch-overview-grid">
+          <div class="arch-stat-box">
+            <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Total Parameters</div>
+            <div id="archTotalParams" class="arch-stat-num">—</div>
+          </div>
+          <div class="arch-stat-box">
+            <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Trainable Parameters</div>
+            <div id="archTrainableParams" class="arch-stat-num">—</div>
+          </div>
+          <div class="arch-stat-box">
+            <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Native Resolution</div>
+            <div id="archResolution" class="arch-stat-num">64x64</div>
+          </div>
+          <div class="arch-stat-box">
+            <div class="text-muted" style="font-size: 0.75rem; text-transform: uppercase;">Latent Dimension (z)</div>
+            <div id="archLatentDim" class="arch-stat-num">100</div>
+          </div>
+        </div>
+
+        <!-- Layer Specifications Table -->
+        <div class="layer-table-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Layer-by-Layer Network Specifications</h3>
+              <p class="card-subtitle">Exact PyTorch module dimensions, kernel operations, and activation functions.</p>
+            </div>
+          </div>
+          <table class="layer-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Layer Name</th>
+                <th>Module Type</th>
+                <th>Output Tensor Shape</th>
+                <th>Parameters</th>
+                <th>Activation</th>
+                <th>Configuration Notes</th>
+              </tr>
+            </thead>
+            <tbody id="layerTableBody">
+              <!-- Dynamically populated by model-explorer.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mathematical Foundation Card -->
+        <section class="math-card">
+          <h3 style="font-size: var(--font-size-lg); margin-bottom: 0.5rem; color: var(--text-primary);">
+            Mathematical Formulation of the Adversarial Objective
+          </h3>
+          <p class="text-muted">
+            The fundamental two-player zero-sum game formulated by Goodfellow et al. (2014) and Radford et al. (2015).
+          </p>
+
+          <div class="equation-box">
+            min_G max_D V(D, G) = E_{x ~ p_data}[log D(x)] + E_{z ~ p_z}[log(1 - D(G(z)))]
+          </div>
+
+          <div class="math-explanation">
+            <p><strong>Variable Definitions & Theoretical Roles:</strong></p>
+            <ul>
+              <li><strong>G (Generator):</strong> Neural network parameterized by &theta;<sub>g</sub> that maps a random latent prior <code>z ~ N(0, I) &isin; R<sup>100</sup></code> into synthetic pixel space <code>G(z) &isin; [-1, 1]<sup>3&times;64&times;64</sup></code>.</li>
+              <li><strong>D (Discriminator):</strong> Convolutional binary classifier parameterized by &theta;<sub>d</sub> that outputs a scalar probability <code>D(x) &isin; [0, 1]</code> indicating whether image <code>x</code> was sampled from the true CelebA dataset distribution <code>p<sub>data</sub></code> rather than the generator distribution <code>p<sub>g</sub></code>.</li>
+              <li><strong>E<sub>x ~ p_data</sub>[log D(x)]:</strong> Expected log-likelihood that the discriminator correctly labels genuine face images as real (label = 1.0).</li>
+              <li><strong>E<sub>z ~ p_z</sub>[log(1 - D(G(z)))]:</strong> Expected log-likelihood that the discriminator correctly rejects synthetic images generated from noise vector <code>z</code> (label = 0.0).</li>
+              <li><strong>Non-Saturating Generator Cost:</strong> In practice, rather than minimizing <code>log(1 - D(G(z)))</code> which suffers from vanishing gradients early in training, the generator is trained to maximize <code>log D(G(z))</code>.</li>
+            </ul>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/navigation.js"></script>
+  <script src="/js/model-explorer.js"></script>
+</body>
+</html>
