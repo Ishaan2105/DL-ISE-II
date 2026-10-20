@@ -304,6 +304,10 @@
   border-left: 4px solid var(--color-error);
 }
 
+.toast.toast-warning {
+  border-left: 4px solid #D97706;
+}
+
 .toast.toast-info {
   border-left: 4px solid var(--accent-secondary);
 }

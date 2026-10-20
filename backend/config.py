@@ -14,11 +14,10 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 STORAGE_DIR = BASE_DIR / "storage"
 GENERATED_DIR = STORAGE_DIR / "generated"
 CHECKPOINTS_DIR = BASE_DIR / "checkpoints"
-COMPARE_DIR = GENERATED_DIR / "compare"
 DATABASE_PATH = STORAGE_DIR / "faceforge.db"
 
 # Ensure runtime directories exist
-for path in [STORAGE_DIR, GENERATED_DIR, CHECKPOINTS_DIR, COMPARE_DIR]:
+for path in [STORAGE_DIR, GENERATED_DIR, CHECKPOINTS_DIR]:
     path.mkdir(parents=True, exist_ok=True)
 
 # Application Metadata
@@ -37,17 +36,19 @@ SUPPORTED_RESOLUTIONS = [64, 128, 256, 512]
 MIN_BATCH_SIZE = 1
 MAX_BATCH_SIZE = 8
 
-# Quality & Upscaling Settings (Environment configurable with request overrides)
+# Quality & Upscaling Settings
 DEFAULT_QUALITY = "high"
 SUPPORTED_QUALITIES = ["standard", "high"]
-TRUNCATION_THRESHOLD_STANDARD = float(os.environ.get("FACEFORGE_TRUNCATION_STANDARD", 1.5))
-TRUNCATION_THRESHOLD_HIGH = float(os.environ.get("FACEFORGE_TRUNCATION_THRESHOLD", 1.1))
-BEST_OF_N = int(os.environ.get("FACEFORGE_BEST_OF_N", 16))
-HIGH_QUALITY_CANDIDATES = BEST_OF_N  # Backwards compatibility alias
-GFPGAN_WEIGHT = float(os.environ.get("FACEFORGE_GFPGAN_WEIGHT", 0.6))
-CODEFORMER_WEIGHT = float(os.environ.get("FACEFORGE_CODEFORMER_WEIGHT", 0.7))
-DEFAULT_UPSCALER = os.environ.get("FACEFORGE_UPSCALER", "gfpgan").lower()
-SUPPORTED_UPSCALERS = ["gfpgan", "codeformer", "both"]
+TRUNCATION_THRESHOLD = float(os.environ.get("TRUNCATION_THRESHOLD", 1.5))
+TRUNCATION_THRESHOLD_STANDARD = 1.5
+TRUNCATION_THRESHOLD_HIGH = float(os.environ.get("TRUNCATION_THRESHOLD", 1.5))
+HIGH_QUALITY_CANDIDATES = int(os.environ.get("BEST_OF_N", 8))
+DEFAULT_UPSCALER = os.environ.get("UPSCALER", "gfpgan").lower()
+DEFAULT_BG_UPSAMPLER = os.environ.get("BG_UPSAMPLER", "off").lower()
+DEFAULT_FACE_UNSHARP = os.environ.get("FACE_UNSHARP", "off").lower()
+DEFAULT_SCORING = os.environ.get("SCORING", "simple").lower()
+DEFAULT_CODEFORMER_WEIGHT = float(os.environ.get("CODEFORMER_WEIGHT", 0.7))
+
 
 # Server Settings
 HOST = os.environ.get("FACEFORGE_HOST", "127.0.0.1")
@@ -58,6 +59,4 @@ SECRET_KEY = os.environ.get("FACEFORGE_SECRET", "faceforge-dev-secret-key-cse-ca
 # Checkpoint Files
 DEFAULT_CHECKPOINT_FILE = CHECKPOINTS_DIR / "dcgan_celeba_generator.pth"
 GFPGAN_CHECKPOINT_FILE = CHECKPOINTS_DIR / "GFPGANv1.4.pth"
-REALESRGAN_CHECKPOINT_FILE = CHECKPOINTS_DIR / "RealESRGAN_x2plus.pth"
-CODEFORMER_CHECKPOINT_FILE = CHECKPOINTS_DIR / "codeformer.pth"
 

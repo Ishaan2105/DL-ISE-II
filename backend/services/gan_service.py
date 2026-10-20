@@ -19,8 +19,6 @@ from backend.config import (
     CHECKPOINTS_DIR,
     DEFAULT_CHECKPOINT_FILE,
     GFPGAN_CHECKPOINT_FILE,
-    REALESRGAN_CHECKPOINT_FILE,
-    CODEFORMER_CHECKPOINT_FILE,
     DEFAULT_LATENT_DIM,
     DEFAULT_NGF,
     DEFAULT_NDF,
@@ -34,12 +32,7 @@ from backend.config import (
     SUPPORTED_QUALITIES,
     TRUNCATION_THRESHOLD_STANDARD,
     TRUNCATION_THRESHOLD_HIGH,
-    BEST_OF_N,
-    HIGH_QUALITY_CANDIDATES,
-    GFPGAN_WEIGHT,
-    CODEFORMER_WEIGHT,
-    DEFAULT_UPSCALER,
-    SUPPORTED_UPSCALERS
+    HIGH_QUALITY_CANDIDATES
 )
 from backend.models.dcgan import Generator, Discriminator, weights_init, get_model_summary
 from backend.services.image_service import ImageService
@@ -87,45 +80,10 @@ class GANService:
 
         self.is_checkpoint_loaded = False
         self.checkpoint_path = None
-        self._warmed_up = False
         self._load_or_init_generator()
 
         self._initialized = True
         logger.info(f"GANService initialized on device: {self.device_name} ({self.device})")
-
-    def warmup_models(self):
-        """
-        Pre-load and warm up all deep learning models in memory so subsequent requests pay no load cost.
-        Warms up: DCGAN Generator, Real-ESRGAN x2 background upsampler, GFPGANv1.4, and CodeFormer.
-        """
-        if self._warmed_up:
-            return
-        self._warmed_up = True
-        logger.info("Initiating server-start model warmup sequence...")
-        t_start = time.perf_counter()
-
-        # 1. DCGAN Generator warmup
-        try:
-            self.generator.eval()
-            dummy_z = torch.randn(1, self.latent_dim, 1, 1, device=self.device)
-            with torch.no_grad():
-                _ = self.generator(dummy_z)
-            logger.info("DCGAN Generator warmed up in memory.")
-        except Exception as e:
-            logger.warning("DCGAN warmup encountered issue (%s)", e)
-
-        # 2. Restoration & upscaling models warmup
-        try:
-            from backend.services.image_service import _get_realesrgan_upsampler, _get_gfpgan_restorer, _get_codeformer_restorer
-            _ = _get_realesrgan_upsampler()
-            _ = _get_gfpgan_restorer()
-            _ = _get_codeformer_restorer()
-            logger.info("Real-ESRGAN x2, GFPGAN v1.4, and CodeFormer models preloaded and cached.")
-        except Exception as e:
-            logger.warning("Restoration model warmup encountered issue (%s)", e)
-
-        warmup_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
-        logger.info("Model warmup sequence completed in %.2fms.", warmup_ms)
 
     def _load_or_init_generator(self):
         """Load pretrained checkpoint if present, or initialize with DCGAN normal distribution."""
@@ -197,6 +155,10 @@ class GANService:
             logger.error(f"Failed to download GFPGAN checkpoint: {e}")
             return False, f"Failed to download GFPGAN checkpoint: {str(e)}"
 
+    def is_restoration_ready(self) -> bool:
+        """Return True if face restoration pipeline (GFPGAN) is operational."""
+        return ImageService.is_restoration_ready()
+
     def get_info(self) -> Dict[str, Any]:
         """Return model metadata, hardware readiness, and layer specs."""
         g_summary = get_model_summary(self.generator, "generator")
@@ -212,18 +174,15 @@ class GANService:
             "native_resolution": NATIVE_RESOLUTION,
             "supported_resolutions": SUPPORTED_RESOLUTIONS,
             "supported_qualities": SUPPORTED_QUALITIES,
-            "supported_upscalers": SUPPORTED_UPSCALERS,
-            "default_upscaler": DEFAULT_UPSCALER,
             "is_checkpoint_loaded": self.is_checkpoint_loaded,
             "gfpgan_loaded": GFPGAN_CHECKPOINT_FILE.exists() and GFPGAN_CHECKPOINT_FILE.stat().st_size > 10_000_000,
-            "realesrgan_loaded": REALESRGAN_CHECKPOINT_FILE.exists() and REALESRGAN_CHECKPOINT_FILE.stat().st_size > 10_000_000,
-            "codeformer_loaded": CODEFORMER_CHECKPOINT_FILE.exists() and CODEFORMER_CHECKPOINT_FILE.stat().st_size > 10_000_000,
+            "restoration_ready": self.is_restoration_ready(),
             "checkpoint_path": self.checkpoint_path,
             "generator_summary": g_summary,
             "discriminator_summary": d_summary,
             "training_dataset": "CelebA (CelebFaces Attributes Dataset - 202,599 face images)",
             "loss_function": "Binary Cross-Entropy (Minimax V(D, G))",
-            "notes": "Native 64x64 synthesis with best-of-N candidate rejection, dual GFPGAN/CodeFormer restoration, and feathered face polish."
+            "notes": "Native 64x64 synthesis with best-of-N candidate rejection and high-fidelity face restoration up to 512x512."
         }
 
     def _sample_truncated_z(
@@ -241,6 +200,7 @@ class GANService:
 
         if threshold and threshold > 0:
             mask = torch.abs(z) > threshold
+            # Deterministically resample truncated dimensions
             while mask.any():
                 new_z = torch.randn(1, self.latent_dim, 1, 1, dtype=torch.float32, generator=gen)
                 z[mask] = new_z[mask]
@@ -248,87 +208,49 @@ class GANService:
 
         return z.to(self.device)
 
-    def _score_candidate_image(self, img_bgr: np.ndarray) -> Tuple[float, float, float, float]:
+    def _score_candidate_image(self, img_bgr: np.ndarray) -> float:
         """
-        Score a 64x64 candidate face for realism, centering, face-region sharpness,
-        with penalties for high background edge noise and color blotches.
-        Returns: (total_score, face_sharpness, bg_noise_penalty, blotch_penalty)
+        Score a 64x64 candidate face for realism, centering, sharpness, and clean color.
+        Uses:
+          (a) Haar cascade face detection (bonus for detection, centering, size)
+          (b) Sharpness score: variance of Laplacian
+          (c) Penalty for extreme color saturation / high-frequency noise
         """
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
         face_cascade = get_face_cascade()
 
         # Face detection (scale to 128 for reliable Haar detection)
         gray_128 = cv2.resize(gray, (128, 128), interpolation=cv2.INTER_LINEAR)
-        rects, reject_levels, level_weights = face_cascade.detectMultiScale3(
-            gray_128,
-            scaleFactor=1.08,
-            minNeighbors=3,
-            minSize=(28, 28),
-            outputRejectLevels=True
-        )
+        faces = face_cascade.detectMultiScale(gray_128, scaleFactor=1.08, minNeighbors=3, minSize=(32, 32))
 
-        if len(rects) == 0:
-            # Heavy penalty if no face detected
-            face_score = -60.0
-            center_crop = gray[16:48, 16:48]
-            face_sharpness = float(cv2.Laplacian(center_crop, cv2.CV_64F).var())
-            sharpness_score = min(15.0, face_sharpness / 15.0)
-            bg_noise_pen = 15.0
-            blotch_pen = 10.0
-            total_score = face_score + sharpness_score - bg_noise_pen - blotch_pen
-            return float(total_score), face_sharpness, bg_noise_pen, blotch_pen
+        if len(faces) == 0:
+            face_score = -50.0  # Penalty if no face detected
+        else:
+            best_f = -100.0
+            for (x, y, w, h) in faces:
+                cx = x + w / 2.0
+                cy = y + h / 2.0
+                dist = np.sqrt((cx - 64.0)**2 + (cy - 64.0)**2)
+                centering = max(0.0, 30.0 - dist * 0.5)
+                size_score = min(20.0, (w * h) / (128.0 * 128.0) * 40.0)
+                score = centering + size_score
+                if score > best_f:
+                    best_f = score
+            face_score = best_f
 
-        # Find best detected face by area and centering
-        best_idx = 0
-        best_rank = -999.0
-        for idx, (x, y, w, h) in enumerate(rects):
-            cx = x + w / 2.0
-            cy = y + h / 2.0
-            dist = np.sqrt((cx - 64.0)**2 + (cy - 64.0)**2)
-            rank = (w * h) - dist * 10.0
-            if rank > best_rank:
-                best_rank = rank
-                best_idx = idx
+        # Sharpness score (Laplacian variance)
+        lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        sharpness_score = min(30.0, lap_var / 15.0)
 
-        x, y, w, h = rects[best_idx]
-        conf = float(level_weights[best_idx]) if len(level_weights) > best_idx else 2.0
-        conf_score = min(20.0, max(0.0, conf * 3.5))
-
-        cx = x + w / 2.0
-        cy = y + h / 2.0
-        dist = np.sqrt((cx - 64.0)**2 + (cy - 64.0)**2)
-        centering_score = max(0.0, 25.0 - dist * 0.4)
-        size_ratio = (w * h) / (128.0 * 128.0)
-        size_score = min(20.0, size_ratio * 50.0)
-        face_score = 25.0 + conf_score + centering_score + size_score
-
-        # Map face rectangle back to native 64x64 coordinates
-        fx = max(0, int(x // 2))
-        fy = max(0, int(y // 2))
-        fw = min(64 - fx, int(w // 2))
-        fh = min(64 - fy, int(h // 2))
-
-        # 1. Laplacian sharpness ON THE FACE REGION ONLY
-        face_gray = gray[fy:fy + fh, fx:fx + fw]
-        face_sharpness = float(cv2.Laplacian(face_gray, cv2.CV_64F).var()) if face_gray.size > 0 else 0.0
-        sharpness_score = min(25.0, face_sharpness / 12.0)
-
-        # 2. Background edge noise penalty (high-frequency artifacts outside face)
-        bg_mask = np.ones((64, 64), dtype=bool)
-        bg_mask[fy:fy + fh, fx:fx + fw] = False
-        lap_full = cv2.Laplacian(gray, cv2.CV_64F)
-        bg_edge_var = float(np.var(lap_full[bg_mask])) if np.sum(bg_mask) > 0 else 0.0
-        bg_noise_pen = min(20.0, bg_edge_var / 15.0)
-
-        # 3. Penalty for high background color blotches / extreme saturation
+        # Penalty for extreme oversaturation
         hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
-        bg_sat = hsv[:, :, 1][bg_mask] if np.sum(bg_mask) > 0 else hsv[:, :, 1]
-        sat_excess = float(np.mean(bg_sat > 215) * 50.0)
-        sat_std_pen = float(min(15.0, np.std(bg_sat) / 4.0))
-        blotch_pen = sat_excess + sat_std_pen
+        sat_excess = np.mean(hsv[:, :, 1] > 225) * 80.0
 
-        total_score = face_score + sharpness_score - bg_noise_pen - blotch_pen
-        return float(total_score), face_sharpness, bg_noise_pen, blotch_pen
+        # Contrast / dynamic range score
+        contrast_score = min(15.0, np.std(gray) / 3.0)
+
+        total_score = face_score + sharpness_score + contrast_score - sat_excess
+        return float(total_score)
 
     def generate(
         self,
@@ -336,17 +258,13 @@ class GANService:
         batch_size: int = 1,
         resolution: int = NATIVE_RESOLUTION,
         quality: str = DEFAULT_QUALITY,
-        truncation: Optional[float] = None,
-        best_of_n: Optional[int] = None,
-        upscaler: Optional[str] = None,
-        gfpgan_weight: Optional[float] = None,
-        codeformer_weight: Optional[float] = None
+        upscaler: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Synthesize face images deterministically.
-        Supports Standard mode (1 candidate, truncation 1.5) and
-        High quality mode (best-of-16 candidates, truncation 1.1, face-only candidate scoring).
-        Outputs are enhanced using GFPGAN / CodeFormer with Real-ESRGAN x2 background upsampler.
+        Supports Standard mode (1 candidate, truncation threshold 1.5) and
+        High quality mode (best-of-8 candidates, truncation threshold 1.5, candidate rejection & scoring).
+        Outputs are enhanced using GFPGAN / Lanczos upscaling to requested resolution.
         """
         # Validate inputs
         if batch_size < MIN_BATCH_SIZE or batch_size > MAX_BATCH_SIZE:
@@ -359,83 +277,137 @@ class GANService:
         if quality not in SUPPORTED_QUALITIES:
             quality = DEFAULT_QUALITY
 
-        truncation_thresh = float(truncation) if truncation is not None else (
-            TRUNCATION_THRESHOLD_HIGH if quality == "high" else TRUNCATION_THRESHOLD_STANDARD
-        )
-        candidate_count = int(best_of_n) if best_of_n is not None else (
-            BEST_OF_N if quality == "high" else 1
-        )
-        w_gfp = GFPGAN_WEIGHT if gfpgan_weight is None else float(gfpgan_weight)
-        w_cf = CODEFORMER_WEIGHT if codeformer_weight is None else float(codeformer_weight)
-        upscaler_mode = (upscaler or DEFAULT_UPSCALER).strip().lower()
-        if upscaler_mode not in SUPPORTED_UPSCALERS:
-            upscaler_mode = DEFAULT_UPSCALER
+        truncation_thresh = TRUNCATION_THRESHOLD_HIGH if quality == "high" else TRUNCATION_THRESHOLD_STANDARD
+        candidate_count = HIGH_QUALITY_CANDIDATES if quality == "high" else 1
+
+        # Determine requested upscaler
+        if upscaler is not None:
+            upscaler_requested = upscaler.lower()
+        elif resolution <= NATIVE_RESOLUTION:
+            upscaler_requested = "native"
+        elif quality == "high":
+            upscaler_requested = "gfpgan_v1.4"
+        else:
+            upscaler_requested = "lanczos_unsharp"
 
         # Guarantee generator is in evaluation mode
         self.generator.eval()
         assert not self.generator.training, "Generator must be in eval mode during inference."
 
-        overall_start = time.perf_counter()
         results = []
 
         for b_idx in range(batch_size):
             item_start = time.perf_counter()
+            gen_ms_total = 0.0
+            score_ms_total = 0.0
 
-            # Stage 1: Generate candidates
-            gen_start = time.perf_counter()
-            candidate_latents = []
-            for c in range(candidate_count):
-                if c == 0:
-                    c_seed = (seed + b_idx) % 2147483647
-                else:
-                    c_seed = (seed + b_idx * 10000 + c * 7919) % 2147483647
+            if candidate_count == 1:
+                # Standard mode: single deterministic candidate
+                c_seed = (seed + b_idx) % 2147483647
+                gen_t0 = time.perf_counter()
+                z = self._sample_truncated_z(c_seed, threshold=truncation_thresh)
+                with torch.no_grad():
+                    best_tensor = self.generator(z)[0]
+                gen_ms_total = (time.perf_counter() - gen_t0) * 1000.0
+                score_ms_total = 0.0
+                total_evaluated = 1
+                total_rejected = 0
+            else:
+                # High quality mode: Step 4 deterministic candidate rejection
+                MAX_BLOCKS = 3
+                total_evaluated = 0
+                total_rejected = 0
+                best_tensor = None
+                fallback_tensor = None
+                fallback_score = -1e9
+                face_cascade = get_face_cascade()
 
-                z_c = self._sample_truncated_z(c_seed, threshold=truncation_thresh)
-                candidate_latents.append(z_c)
+                for block in range(MAX_BLOCKS):
+                    gen_t0 = time.perf_counter()
+                    candidate_latents = []
+                    for c in range(candidate_count):
+                        # Batch-size independent deterministic seed formula
+                        c_seed = (seed + b_idx * 100000 + block * 10000 + c * 7919) % 2147483647
+                        z_c = self._sample_truncated_z(c_seed, threshold=truncation_thresh)
+                        candidate_latents.append(z_c)
 
-            z_batch = torch.cat(candidate_latents, dim=0)
+                    z_batch = torch.cat(candidate_latents, dim=0)
+                    with torch.no_grad():
+                        out_tensors = self.generator(z_batch)
+                    gen_ms_total += (time.perf_counter() - gen_t0) * 1000.0
 
-            with torch.no_grad():
-                out_tensors = self.generator(z_batch)
+                    score_t0 = time.perf_counter()
+                    block_valid = []
 
-            generate_ms = round((time.perf_counter() - gen_start) * 1000.0, 2)
+                    for c in range(candidate_count):
+                        total_evaluated += 1
+                        t = (out_tensors[c] + 1.0) / 2.0
+                        t = torch.clamp(t, 0.0, 1.0).permute(1, 2, 0).cpu().numpy()
+                        bgr = cv2.cvtColor(np.round(t * 255.0).astype(np.uint8), cv2.COLOR_RGB2BGR)
+                        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+                        gray_128 = cv2.resize(gray, (128, 128), interpolation=cv2.INTER_LINEAR)
 
-            # Stage 2: Score candidates (Face-region sharpness + detection + noise penalty)
-            score_start = time.perf_counter()
-            best_tensor = out_tensors[0]
-            best_c_idx = 0
-            best_score = 0.0
+                        rects, _, weights = face_cascade.detectMultiScale3(
+                            gray_128, scaleFactor=1.08, minNeighbors=3, minSize=(32, 32), outputRejectLevels=True
+                        )
 
-            if candidate_count > 1:
-                candidate_scores = []
-                for c in range(candidate_count):
-                    t = (out_tensors[c] + 1.0) / 2.0
-                    t = torch.clamp(t, 0.0, 1.0).permute(1, 2, 0).cpu().numpy()
-                    bgr = cv2.cvtColor(np.round(t * 255.0).astype(np.uint8), cv2.COLOR_RGB2BGR)
-                    score, face_sharp, bg_noise_pen, blotch_pen = self._score_candidate_image(bgr)
-                    logger.info(
-                        "Seed %d (batch %d) Candidate %2d/%2d: score=%6.2f [face_sharp=%5.1f, bg_noise_pen=%4.1f, blotch_pen=%4.1f]",
-                        seed, b_idx, c + 1, candidate_count, score, face_sharp, bg_noise_pen, blotch_pen
-                    )
-                    candidate_scores.append((c, score))
+                        is_valid = False
+                        cand_score = -1e9
+                        if len(rects) > 0:
+                            for idx, (x, y, w, h) in enumerate(rects):
+                                cx = x + w / 2.0
+                                cy = y + h / 2.0
+                                dist = np.sqrt((cx - 64.0)**2 + (cy - 64.0)**2)
+                                # Discard if face is too small or far off-center
+                                if min(w, h) >= 52 and dist <= 32.0:
+                                    is_valid = True
+                                    conf = float(weights[idx]) if len(weights) > idx else 10.0
+                                    centering = max(0.0, 30.0 - dist * 0.5)
+                                    size_score = (w * h) / (128.0 * 128.0) * 40.0
+                                    score = conf + centering + size_score
+                                    if score > cand_score:
+                                        cand_score = score
 
-                best_c_idx, best_score = max(candidate_scores, key=lambda x: x[1])
-                best_tensor = out_tensors[best_c_idx]
-                logger.info("Seed %d (batch %d) Winner Candidate: #%d with score %.2f", seed, b_idx, best_c_idx + 1, best_score)
+                        if is_valid:
+                            block_valid.append((c, cand_score, out_tensors[c]))
+                        else:
+                            total_rejected += 1
+                            if cand_score > fallback_score:
+                                fallback_score = cand_score
+                                fallback_tensor = out_tensors[c]
 
-            score_ms = round((time.perf_counter() - score_start) * 1000.0, 2)
+                    score_ms_total += (time.perf_counter() - score_t0) * 1000.0
+
+                    if block_valid:
+                        best_candidate = max(block_valid, key=lambda item: item[1])
+                        best_tensor = best_candidate[2]
+                        break
+                    else:
+                        logger.warning(
+                            "All %d candidates rejected in block %d for seed %d (batch_idx %d). Deterministically moving to candidate block %d.",
+                            candidate_count, block, seed, b_idx, block + 1
+                        )
+
+                if best_tensor is None:
+                    logger.warning("All candidates rejected across %d blocks for seed %d. Using fallback candidate.", MAX_BLOCKS, seed)
+                    best_tensor = fallback_tensor if fallback_tensor is not None else out_tensors[0]
 
             # Convert best candidate to native 64x64 PIL image
             native_pil = ImageService.tensor_to_pil(best_tensor, target_resolution=NATIVE_RESOLUTION)
 
-            # Stage 3 & 4: Restoration & Face-only Polish
-            enhanced_pil, upscaler_used, restore_ms, polish_ms = ImageService.enhance_image(
-                pil_img=native_pil,
+            item_seed = (seed + b_idx) % 2147483647
+            restore_t0 = time.perf_counter()
+            enhanced_pil, upscaler_used, fallback_reason = ImageService.enhance_image(
+                native_pil,
                 target_resolution=resolution,
-                upscaler=upscaler_mode,
-                gfpgan_weight=w_gfp,
-                codeformer_weight=w_cf
+                requested_upscaler=upscaler_requested,
+                quality=quality,
+                seed=item_seed
             )
+            restore_ms = round((time.perf_counter() - restore_t0) * 1000.0, 2)
+            total_duration_ms = round((time.perf_counter() - item_start) * 1000.0, 2)
+            gen_ms = round(gen_ms_total, 2)
+            score_ms = round(score_ms_total, 2)
 
             # Persist image files (both enhanced and native 64x64)
             filename, native_filename, _, _ = ImageService.save_generation_pair(
@@ -445,20 +417,6 @@ class GANService:
                 batch_idx=b_idx
             )
             gen_id = Path(filename).stem
-            total_item_ms = round((time.perf_counter() - item_start) * 1000.0, 2)
-
-            timing_data = {
-                "generate_ms": generate_ms,
-                "score_ms": score_ms,
-                "restore_ms": restore_ms,
-                "polish_ms": polish_ms,
-                "total_ms": total_item_ms
-            }
-
-            logger.info(
-                "Generation timing [seed %d b%d]: generate=%.1fms, score=%.1fms, restore=%.1fms, polish=%.1fms, total=%.1fms",
-                seed, b_idx, generate_ms, score_ms, restore_ms, polish_ms, total_item_ms
-            )
 
             # Store in SQLite database
             record = insert_generation(
@@ -468,7 +426,7 @@ class GANService:
                 batch_index=b_idx,
                 model_name=self.model_name,
                 resolution=resolution,
-                duration_ms=total_item_ms,
+                duration_ms=total_duration_ms,
                 device=self.device_name,
                 saved_to_gallery=False,
                 native_filename=native_filename,
@@ -492,16 +450,22 @@ class GANService:
                 "is_upscaled": resolution != NATIVE_RESOLUTION,
                 "quality": quality,
                 "truncation": truncation_thresh,
-                "truncation_threshold": truncation_thresh,
-                "best_of_n": candidate_count,
-                "candidate_count": candidate_count,
                 "upscaler": upscaler_used,
-                "gfpgan_weight": w_gfp,
-                "codeformer_weight": w_cf,
-                "timing": timing_data,
+                "upscaler_requested": upscaler_requested,
+                "upscaler_used": upscaler_used,
+                "fallback_reason": fallback_reason,
+                "candidate_count": candidate_count,
+                "candidates_evaluated": total_evaluated,
+                "candidates_rejected": total_rejected,
+                "timing": {
+                    "generate_ms": gen_ms,
+                    "score_ms": score_ms,
+                    "restore_ms": restore_ms,
+                    "total_ms": total_duration_ms
+                },
                 "model_name": self.model_name,
                 "device": self.device_name,
-                "duration_ms": total_item_ms,
+                "duration_ms": total_duration_ms,
                 "created_at": record["created_at"]
             })
 
@@ -513,10 +477,7 @@ class GANService:
         seed2: int,
         steps: int = 7,
         resolution: int = NATIVE_RESOLUTION,
-        quality: str = DEFAULT_QUALITY,
-        upscaler: Optional[str] = None,
-        gfpgan_weight: Optional[float] = None,
-        codeformer_weight: Optional[float] = None
+        quality: str = DEFAULT_QUALITY
     ) -> Dict[str, Any]:
         """
         Generate continuous linear interpolation z(t) = (1-t)*z1 + t*z2 between two seeds.
@@ -529,9 +490,6 @@ class GANService:
             raise ValueError(f"Resolution must be one of {SUPPORTED_RESOLUTIONS}.")
 
         truncation_thresh = TRUNCATION_THRESHOLD_HIGH if quality == "high" else TRUNCATION_THRESHOLD_STANDARD
-        w_gfp = GFPGAN_WEIGHT if gfpgan_weight is None else float(gfpgan_weight)
-        w_cf = CODEFORMER_WEIGHT if codeformer_weight is None else float(codeformer_weight)
-        upscaler_mode = upscaler or DEFAULT_UPSCALER
 
         # Ensure generator in eval mode
         self.generator.eval()
@@ -558,12 +516,8 @@ class GANService:
         for idx in range(steps):
             t_val = round(float(t_values[idx].item()), 3)
             native_frame = ImageService.tensor_to_pil(output_tensors[idx], target_resolution=NATIVE_RESOLUTION)
-            enhanced_frame, upscaler_used, _, _ = ImageService.enhance_image(
-                pil_img=native_frame,
-                target_resolution=resolution,
-                upscaler=upscaler_mode,
-                gfpgan_weight=w_gfp,
-                codeformer_weight=w_cf
+            enhanced_frame, upscaler_used, _ = ImageService.enhance_image(
+                native_frame, target_resolution=resolution, quality=quality
             )
             frame_images.append(enhanced_frame)
 

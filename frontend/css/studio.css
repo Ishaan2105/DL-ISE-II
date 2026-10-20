@@ -199,6 +199,20 @@
   font-family: var(--font-family-mono);
 }
 
+.meta-pill-fallback {
+  background-color: rgba(220, 38, 38, 0.12);
+  border-color: #DC2626;
+  color: #DC2626;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.meta-pill-fallback strong {
+  color: #DC2626;
+}
+
 /* Studio Actions Toolbar */
 .studio-actions-bar {
   display: flex;

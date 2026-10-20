@@ -145,53 +145,47 @@ def test_latent_interpolation(client):
     assert "strip_url" in interp
 
 
-def test_configurable_quality_overrides_and_timing(client):
-    """Verify request overrides for truncation, best_of_n, weights, and stage timings."""
+def test_high_quality_restoration_not_fallback(client):
+    """
+    Verify High quality mode uses the requested GFPGAN restoration (not fallback)
+    when GFPGAN weights file is present. Fails if fallback is used.
+    """
+    from backend.config import GFPGAN_CHECKPOINT_FILE
+    assert GFPGAN_CHECKPOINT_FILE.exists() and GFPGAN_CHECKPOINT_FILE.stat().st_size > 10_000_000, "GFPGAN weights must be present for test."
+
     payload = {
         "seed": 42,
         "batch_size": 1,
-        "resolution": 64,
-        "quality": "high",
-        "truncation": 1.1,
-        "best_of_n": 2,
-        "gfpgan_weight": 0.6,
-        "codeformer_weight": 0.7,
-        "upscaler": "gfpgan"
+        "resolution": 256,
+        "quality": "high"
     }
     response = client.post("/api/generate", json=payload)
     assert response.status_code == 200
     data = response.get_json()
     assert data["success"] is True
     gen = data["generations"][0]
-    assert gen["truncation_threshold"] == 1.1
-    assert gen["best_of_n"] == 2
-    assert gen["gfpgan_weight"] == 0.6
-    assert gen["codeformer_weight"] == 0.7
-    assert "timing" in gen
-    timing = gen["timing"]
-    assert "generate_ms" in timing
-    assert "score_ms" in timing
-    assert "restore_ms" in timing
-    assert "polish_ms" in timing
-    assert "total_ms" in timing
+    assert gen["upscaler_requested"] == "gfpgan_v1.4"
+    assert gen["upscaler_used"] == "gfpgan_v1.4", f"Expected gfpgan_v1.4 but got {gen['upscaler_used']} (fallback: {gen.get('fallback_reason')})"
+    assert gen["fallback_reason"] is None
 
 
-def test_high_quality_determinism(client):
-    """Verify that High quality mode produces identical image bytes for identical seed and settings."""
-    payload = {
-        "seed": 77,
-        "batch_size": 1,
-        "resolution": 64,
-        "quality": "high",
-        "truncation": 1.1,
-        "best_of_n": 4
-    }
-    res1 = client.post("/api/generate", json=payload).get_json()["generations"][0]
-    res2 = client.post("/api/generate", json=payload).get_json()["generations"][0]
+def test_health_restoration_ready(client):
+    """Verify /api/health endpoint includes restoration_ready boolean."""
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "restoration_ready" in data
+    assert data["restoration_ready"] is True
+
+
+def test_high_quality_batch_size_independence(client):
+    """Verify seed 44 at index 0 produces identical image bytes in batch 1 and batch 4 under High quality."""
+    payload1 = {"seed": 44, "batch_size": 1, "resolution": 128, "quality": "high"}
+    payload4 = {"seed": 44, "batch_size": 4, "resolution": 128, "quality": "high"}
+    res1 = client.post("/api/generate", json=payload1).get_json()["generations"][0]
+    res4 = client.post("/api/generate", json=payload4).get_json()["generations"][0]
 
     path1 = GENERATED_DIR / res1["filename"]
-    path2 = GENERATED_DIR / res2["filename"]
-
-    assert path1.exists() and path2.exists()
-    assert path1.read_bytes() == path2.read_bytes(), "High quality generation must be strictly deterministic."
+    path4 = GENERATED_DIR / res4["filename"]
+    assert path1.read_bytes() == path4.read_bytes(), "High quality batch 1 and batch 4 index 0 must be identical."
 

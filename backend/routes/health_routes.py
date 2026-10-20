@@ -22,5 +22,6 @@ def health_check():
         "device_type": str(gan_service.device),
         "cuda_available": gan_service.get_info()["cuda_available"],
         "model_ready": True,
-        "checkpoint_loaded": gan_service.is_checkpoint_loaded
+        "checkpoint_loaded": gan_service.is_checkpoint_loaded,
+        "restoration_ready": gan_service.is_restoration_ready()
     }), 200

@@ -30,6 +30,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const metaUpscaler = document.getElementById("metaUpscaler");
   const metaDuration = document.getElementById("metaDuration");
   const metaDevice = document.getElementById("metaDevice");
+  const metaFallbackChip = document.getElementById("metaFallbackChip");
+  const metaFallbackText = document.getElementById("metaFallbackText");
   const btnToggleNative = document.getElementById("btnToggleNative");
 
   // Actions
@@ -145,13 +147,23 @@ document.addEventListener("DOMContentLoaded", () => {
         batchContainer.style.display = "none";
       }
 
-      const upscalerInfo = currentBatchResults[0].upscaler && currentBatchResults[0].upscaler !== "native"
-        ? ` (${currentBatchResults[0].upscaler.toUpperCase()})`
-        : "";
-      window.UI.showToast(
-        `Synthesized ${currentBatchResults.length} face(s) in ${currentBatchResults[0].duration_ms}ms${upscalerInfo}!`,
-        "success"
-      );
+      const firstGen = currentBatchResults[0];
+      const isFallback = firstGen.upscaler_used && firstGen.upscaler_requested && (firstGen.upscaler_used !== firstGen.upscaler_requested);
+      if (isFallback) {
+        const reason = firstGen.fallback_reason ? `: ${firstGen.fallback_reason}` : "";
+        window.UI.showToast(
+          `Upscaler Fallback Warning: Requested ${firstGen.upscaler_requested.toUpperCase()} but used ${firstGen.upscaler_used.toUpperCase()}${reason}`,
+          "warning"
+        );
+      } else {
+        const upscalerInfo = firstGen.upscaler && firstGen.upscaler !== "native"
+          ? ` (${firstGen.upscaler.toUpperCase()})`
+          : "";
+        window.UI.showToast(
+          `Synthesized ${currentBatchResults.length} face(s) in ${firstGen.duration_ms}ms${upscalerInfo}!`,
+          "success"
+        );
+      }
     } catch (err) {
       window.UI.showToast(`Generation failed: ${err.message}`, "error");
     } finally {
@@ -184,6 +196,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (metaUpscaler) metaUpscaler.textContent = (gen.upscaler || "native").toUpperCase();
     if (metaDuration) metaDuration.textContent = `${gen.duration_ms} ms`;
     if (metaDevice) metaDevice.textContent = gen.device;
+
+    // Fallback red chip visibility
+    if (metaFallbackChip) {
+      if (gen.upscaler_used && gen.upscaler_requested && gen.upscaler_used !== gen.upscaler_requested) {
+        metaFallbackChip.style.display = "inline-flex";
+        if (metaFallbackText) metaFallbackText.textContent = gen.upscaler_used.toUpperCase();
+        metaFallbackChip.title = gen.fallback_reason || `Fallback from ${gen.upscaler_requested}`;
+      } else {
+        metaFallbackChip.style.display = "none";
+      }
+    }
 
     // Toggle Native 64x64 Comparison Button
     if (btnToggleNative) {
