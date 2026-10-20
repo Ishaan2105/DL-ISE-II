@@ -24,6 +24,8 @@ storage/faceforge.db
 checkpoints/*.pth
 data/datasets/*
 !data/datasets/.gitkeep
+gfpgan/
+storage/generated/compare/
 
 # IDE & OS
 .vscode/

@@ -1,22 +1,24 @@
 /**
  * FaceForge AI - Face Studio Controller
- * Handles model inference, batch generation, seed dice, gallery saving,
- * and continuous latent-space interpolation.
+ * Handles model inference, best-of-N candidate rejection, GFPGAN upscaling,
+ * batch generation, seed dice, gallery saving, and latent-space interpolation.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
   // Elements
   const seedInput = document.getElementById("seedInput");
   const btnRandomSeed = document.getElementById("btnRandomSeed");
+  const qualityButtons = document.querySelectorAll(".quality-opt");
   const batchButtons = document.querySelectorAll(".batch-opt");
   const resButtons = document.querySelectorAll(".res-opt");
   const btnGenerate = document.getElementById("btnGenerate");
   const btnGenerateAnother = document.getElementById("btnGenerateAnother");
-  
+
   const viewportFrame = document.getElementById("viewportFrame");
   const viewportImg = document.getElementById("viewportImg");
   const viewportPlaceholder = document.getElementById("viewportPlaceholder");
   const generatorLoader = document.getElementById("generatorLoader");
+  const loaderText = generatorLoader ? generatorLoader.querySelector(".loader-text") : null;
   const batchContainer = document.getElementById("batchContainer");
   const batchGrid = document.getElementById("batchGrid");
 
@@ -24,9 +26,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const metaBar = document.getElementById("metadataBar");
   const metaSeed = document.getElementById("metaSeed");
   const metaRes = document.getElementById("metaRes");
+  const metaQuality = document.getElementById("metaQuality");
+  const metaUpscaler = document.getElementById("metaUpscaler");
   const metaDuration = document.getElementById("metaDuration");
   const metaDevice = document.getElementById("metaDevice");
-  const metaModel = document.getElementById("metaModel");
+  const btnToggleNative = document.getElementById("btnToggleNative");
 
   // Actions
   const btnSaveGallery = document.getElementById("btnSaveGallery");
@@ -42,10 +46,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnDownloadStrip = document.getElementById("btnDownloadStrip");
 
   // State
+  let currentQuality = "high";
   let currentBatchSize = 1;
-  let currentResolution = 64;
+  let currentResolution = 256;
   let currentGeneration = null;
   let currentBatchResults = [];
+  let showingNative = false;
 
   // Seed Randomizer
   function getRandomSeed() {
@@ -57,6 +63,28 @@ document.addEventListener("DOMContentLoaded", () => {
       seedInput.value = getRandomSeed();
     });
   }
+
+  // Quality Selector Toggle
+  qualityButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      qualityButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentQuality = btn.dataset.quality;
+
+      // Automatically sync resolution default when switching quality
+      if (currentQuality === "high" && currentResolution === 64) {
+        currentResolution = 256;
+        resButtons.forEach(rb => {
+          rb.classList.toggle("active", parseInt(rb.dataset.res, 10) === 256);
+        });
+      } else if (currentQuality === "standard" && currentResolution === 256) {
+        currentResolution = 64;
+        resButtons.forEach(rb => {
+          rb.classList.toggle("active", parseInt(rb.dataset.res, 10) === 64);
+        });
+      }
+    });
+  });
 
   // Batch Selector Toggle
   batchButtons.forEach(btn => {
@@ -86,6 +114,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Set UI to loading state
     btnGenerate.disabled = true;
     if (btnGenerateAnother) btnGenerateAnother.disabled = true;
+    if (loaderText) {
+      loaderText.textContent = currentQuality === "high"
+        ? "Synthesizing & Enhancing Face (Best-of-8 & GFPGAN)..."
+        : "Executing DCGAN PyTorch Forward Pass...";
+    }
     generatorLoader.classList.add("active");
     viewportFrame.classList.add("loading");
 
@@ -93,7 +126,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await window.API.post("/api/generate", {
         seed: parseInt(seed, 10),
         batch_size: currentBatchSize,
-        resolution: currentResolution
+        resolution: currentResolution,
+        quality: currentQuality
       });
 
       if (!response.success || !response.generations || response.generations.length === 0) {
@@ -111,7 +145,13 @@ document.addEventListener("DOMContentLoaded", () => {
         batchContainer.style.display = "none";
       }
 
-      window.UI.showToast(`Synthesized ${currentBatchResults.length} face(s) in ${currentBatchResults[0].duration_ms}ms!`, "success");
+      const upscalerInfo = currentBatchResults[0].upscaler && currentBatchResults[0].upscaler !== "native"
+        ? ` (${currentBatchResults[0].upscaler.toUpperCase()})`
+        : "";
+      window.UI.showToast(
+        `Synthesized ${currentBatchResults.length} face(s) in ${currentBatchResults[0].duration_ms}ms${upscalerInfo}!`,
+        "success"
+      );
     } catch (err) {
       window.UI.showToast(`Generation failed: ${err.message}`, "error");
     } finally {
@@ -124,17 +164,48 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function displaySingleGeneration(gen) {
     currentGeneration = gen;
+    showingNative = false;
     viewportPlaceholder.style.display = "none";
     viewportImg.style.display = "block";
     viewportImg.src = gen.image_url;
 
+    // Crisp pixelated rendering only for native 64x64; smooth auto for enhanced
+    if (gen.resolution === 64) {
+      viewportImg.style.imageRendering = "pixelated";
+    } else {
+      viewportImg.style.imageRendering = "auto";
+    }
+
     // Update metadata pills
     metaBar.style.display = "flex";
     if (metaSeed) metaSeed.textContent = gen.seed;
-    if (metaRes) metaRes.textContent = `${gen.resolution}x${gen.resolution} ${gen.is_upscaled ? "(Bicubic)" : "(Native)"}`;
+    if (metaRes) metaRes.textContent = `${gen.resolution}x${gen.resolution}`;
+    if (metaQuality) metaQuality.textContent = (gen.quality || "standard").toUpperCase();
+    if (metaUpscaler) metaUpscaler.textContent = (gen.upscaler || "native").toUpperCase();
     if (metaDuration) metaDuration.textContent = `${gen.duration_ms} ms`;
     if (metaDevice) metaDevice.textContent = gen.device;
-    if (metaModel) metaModel.textContent = gen.model_name;
+
+    // Toggle Native 64x64 Comparison Button
+    if (btnToggleNative) {
+      if (gen.native_url && gen.resolution > 64) {
+        btnToggleNative.style.display = "inline-flex";
+        btnToggleNative.textContent = "Show Native 64x64";
+        btnToggleNative.onclick = () => {
+          showingNative = !showingNative;
+          if (showingNative) {
+            viewportImg.src = gen.native_url;
+            viewportImg.style.imageRendering = "pixelated";
+            btnToggleNative.textContent = "Show Enhanced";
+          } else {
+            viewportImg.src = gen.image_url;
+            viewportImg.style.imageRendering = "auto";
+            btnToggleNative.textContent = "Show Native 64x64";
+          }
+        };
+      } else {
+        btnToggleNative.style.display = "none";
+      }
+    }
 
     // Reset save button state
     if (btnSaveGallery) {
@@ -152,7 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderBatchGrid(results) {
     batchGrid.innerHTML = results.map((item, idx) => `
       <div class="batch-item ${idx === 0 ? "active" : ""}" data-idx="${idx}">
-        <img src="${item.image_url}" alt="Batch Item ${idx + 1}" />
+        <img src="${item.image_url}" alt="Batch Item ${idx + 1}" style="image-rendering: ${item.resolution === 64 ? 'pixelated' : 'auto'};" />
       </div>
     `).join("");
 
@@ -200,7 +271,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnDownloadPng) {
     btnDownloadPng.addEventListener("click", () => {
       if (!currentGeneration) return;
-      window.UI.downloadImage(currentGeneration.image_url, currentGeneration.filename);
+      const downloadUrl = showingNative ? currentGeneration.native_url : currentGeneration.image_url;
+      const downloadName = showingNative ? currentGeneration.native_filename : currentGeneration.filename;
+      window.UI.downloadImage(downloadUrl, downloadName);
     });
   }
 
@@ -212,14 +285,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const steps = parseInt(morphSteps.value, 10);
 
       btnRunMorph.disabled = true;
-      btnRunMorph.innerHTML = `<span class="spinner"></span> Interpolating...`;
+      btnRunMorph.innerHTML = `<span class="spinner"></span> Interpolating & Enhancing...`;
 
       try {
         const res = await window.API.post("/api/generate/interpolate", {
           seed1: s1,
           seed2: s2,
           steps: steps,
-          resolution: currentResolution
+          resolution: currentResolution,
+          quality: currentQuality
         });
 
         const interp = res.interpolation;

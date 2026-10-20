@@ -36,16 +36,21 @@ def get_db():
         conn.close()
 
 def init_db_schema(conn):
-    """Create generations table and indexes on connection."""
+    """Create generations table and indexes on connection, and migrate new columns."""
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS generations (
             id TEXT PRIMARY KEY,
             filename TEXT NOT NULL,
+            native_filename TEXT,
             seed INTEGER NOT NULL,
             batch_index INTEGER DEFAULT 0,
             model_name TEXT NOT NULL,
             resolution INTEGER NOT NULL,
+            quality TEXT DEFAULT 'standard',
+            truncation REAL DEFAULT 1.5,
+            upscaler TEXT DEFAULT 'none',
+            candidate_count INTEGER DEFAULT 1,
             duration_ms REAL NOT NULL,
             device TEXT NOT NULL,
             saved_to_gallery INTEGER DEFAULT 0,
@@ -54,6 +59,23 @@ def init_db_schema(conn):
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_gen_created_at ON generations(created_at DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_gen_saved ON generations(saved_to_gallery)")
+
+    # Run safe column migration for existing tables
+    cursor.execute("PRAGMA table_info(generations)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+    migrations = [
+        ("native_filename", "TEXT"),
+        ("quality", "TEXT DEFAULT 'standard'"),
+        ("truncation", "REAL DEFAULT 1.5"),
+        ("upscaler", "TEXT DEFAULT 'none'"),
+        ("candidate_count", "INTEGER DEFAULT 1")
+    ]
+    for col_name, col_type in migrations:
+        if col_name not in existing_cols:
+            try:
+                cursor.execute(f"ALTER TABLE generations ADD COLUMN {col_name} {col_type}")
+            except Exception as e:
+                logger.warning("Could not add column %s: %s", col_name, e)
 
 def init_db():
     """Explicitly initialize schema."""
@@ -70,17 +92,38 @@ def insert_generation(
     resolution: int,
     duration_ms: float,
     device: str,
-    saved_to_gallery: bool = False
+    saved_to_gallery: bool = False,
+    native_filename: Optional[str] = None,
+    quality: str = "standard",
+    truncation: float = 1.5,
+    upscaler: str = "none",
+    candidate_count: int = 1
 ) -> Dict[str, Any]:
     """Insert a new generation record."""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO generations 
-            (id, filename, seed, batch_index, model_name, resolution, duration_ms, device, saved_to_gallery, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (gen_id, filename, seed, batch_index, model_name, resolution, duration_ms, device, 1 if saved_to_gallery else 0))
+            (id, filename, native_filename, seed, batch_index, model_name, resolution, quality, truncation, upscaler, candidate_count, duration_ms, device, saved_to_gallery, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (
+            gen_id,
+            filename,
+            native_filename or filename,
+            seed,
+            batch_index,
+            model_name,
+            resolution,
+            quality,
+            truncation,
+            upscaler,
+            candidate_count,
+            duration_ms,
+            device,
+            1 if saved_to_gallery else 0
+        ))
     return get_generation_by_id(gen_id)
+
 
 def get_generation_by_id(gen_id: str) -> Optional[Dict[str, Any]]:
     """Retrieve a single generation record by its ID."""

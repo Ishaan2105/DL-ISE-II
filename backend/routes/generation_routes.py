@@ -4,9 +4,17 @@ FaceForge AI - Synthetic Face Generation & Latent Space Exploration Endpoints.
 
 from flask import Blueprint, request, jsonify
 from backend.services.gan_service import GANService
-from backend.config import NATIVE_RESOLUTION, MIN_BATCH_SIZE, MAX_BATCH_SIZE, SUPPORTED_RESOLUTIONS
+from backend.config import (
+    NATIVE_RESOLUTION,
+    MIN_BATCH_SIZE,
+    MAX_BATCH_SIZE,
+    SUPPORTED_RESOLUTIONS,
+    SUPPORTED_QUALITIES,
+    DEFAULT_QUALITY
+)
 
 generation_bp = Blueprint("generation_bp", __name__)
+
 
 @generation_bp.route("/api/generate", methods=["POST"])
 def generate_face():
@@ -15,21 +23,22 @@ def generate_face():
     Payload:
       seed: int (required)
       batch_size: int (optional, default 1, range 1-8)
-      resolution: int (optional, default 64, options [64, 128])
+      resolution: int (optional, options [64, 128, 256, 512])
+      quality: str (optional, options ["standard", "high"])
     """
     data = request.get_json(silent=True) or {}
-    
+
     # Validate seed
     if "seed" not in data:
         return jsonify({"success": False, "error": "Field 'seed' is required."}), 400
-        
+
     try:
         seed = int(data["seed"])
         if seed < 0 or seed > 2147483647:
             return jsonify({"success": False, "error": "Seed must be a positive integer between 0 and 2,147,483,647."}), 400
     except (ValueError, TypeError):
         return jsonify({"success": False, "error": "Invalid seed format. Must be an integer."}), 400
-        
+
     # Validate batch size
     batch_size = data.get("batch_size", 1)
     try:
@@ -38,19 +47,79 @@ def generate_face():
             return jsonify({"success": False, "error": f"Batch size must be between {MIN_BATCH_SIZE} and {MAX_BATCH_SIZE}."}), 400
     except (ValueError, TypeError):
         return jsonify({"success": False, "error": "Invalid batch_size format."}), 400
-        
-    # Validate resolution
-    resolution = data.get("resolution", NATIVE_RESOLUTION)
-    try:
-        resolution = int(resolution)
-        if resolution not in SUPPORTED_RESOLUTIONS:
-            return jsonify({"success": False, "error": f"Resolution must be one of {SUPPORTED_RESOLUTIONS}."}), 400
-    except (ValueError, TypeError):
-        return jsonify({"success": False, "error": "Invalid resolution format."}), 400
-        
+
+    # Validate quality
+    quality = str(data.get("quality", DEFAULT_QUALITY)).strip().lower()
+    if quality not in SUPPORTED_QUALITIES:
+        return jsonify({"success": False, "error": f"Quality must be one of {SUPPORTED_QUALITIES}."}), 400
+
+    # Validate resolution (default 256 for high quality, 64 for standard)
+    if "resolution" in data:
+        try:
+            resolution = int(data["resolution"])
+            if resolution not in SUPPORTED_RESOLUTIONS:
+                return jsonify({"success": False, "error": f"Resolution must be one of {SUPPORTED_RESOLUTIONS}."}), 400
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid resolution format."}), 400
+    else:
+        resolution = 256 if quality == "high" else NATIVE_RESOLUTION
+
+    # Parse optional quality tuning overrides (env defaults apply if omitted)
+    truncation = None
+    if "truncation" in data or "truncation_threshold" in data:
+        raw_tr = data.get("truncation", data.get("truncation_threshold"))
+        try:
+            truncation = float(raw_tr)
+            if truncation <= 0.0 or truncation > 5.0:
+                return jsonify({"success": False, "error": "Truncation threshold must be between 0.1 and 5.0."}), 400
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid truncation format. Must be a float."}), 400
+
+    best_of_n = None
+    if "best_of_n" in data or "candidate_count" in data:
+        raw_bon = data.get("best_of_n", data.get("candidate_count"))
+        try:
+            best_of_n = int(raw_bon)
+            if best_of_n < 1 or best_of_n > 32:
+                return jsonify({"success": False, "error": "best_of_n must be between 1 and 32."}), 400
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid best_of_n format. Must be an integer."}), 400
+
+    upscaler = None
+    if "upscaler" in data:
+        upscaler = str(data["upscaler"]).strip().lower()
+
+    gfpgan_weight = None
+    if "gfpgan_weight" in data:
+        try:
+            gfpgan_weight = float(data["gfpgan_weight"])
+            if gfpgan_weight < 0.0 or gfpgan_weight > 1.0:
+                return jsonify({"success": False, "error": "gfpgan_weight must be between 0.0 and 1.0."}), 400
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid gfpgan_weight format."}), 400
+
+    codeformer_weight = None
+    if "codeformer_weight" in data:
+        try:
+            codeformer_weight = float(data["codeformer_weight"])
+            if codeformer_weight < 0.0 or codeformer_weight > 1.0:
+                return jsonify({"success": False, "error": "codeformer_weight must be between 0.0 and 1.0."}), 400
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid codeformer_weight format."}), 400
+
     try:
         gan_service = GANService()
-        generations = gan_service.generate(seed=seed, batch_size=batch_size, resolution=resolution)
+        generations = gan_service.generate(
+            seed=seed,
+            batch_size=batch_size,
+            resolution=resolution,
+            quality=quality,
+            truncation=truncation,
+            best_of_n=best_of_n,
+            upscaler=upscaler,
+            gfpgan_weight=gfpgan_weight,
+            codeformer_weight=codeformer_weight
+        )
         return jsonify({
             "success": True,
             "count": len(generations),
@@ -58,6 +127,7 @@ def generate_face():
         }), 200
     except Exception as e:
         return jsonify({"success": False, "error": f"Generation failed: {str(e)}"}), 500
+
 
 @generation_bp.route("/api/generate/interpolate", methods=["POST"])
 def interpolate_faces():
@@ -67,24 +137,51 @@ def interpolate_faces():
       seed1: int
       seed2: int
       steps: int (default 7, range 3-15)
-      resolution: int (default 64)
+      resolution: int (default 64, options [64, 128, 256, 512])
+      quality: str (default "standard")
+      upscaler: str (optional)
+      gfpgan_weight: float (optional)
+      codeformer_weight: float (optional)
     """
     data = request.get_json(silent=True) or {}
-    
+
     try:
         seed1 = int(data.get("seed1", 42))
         seed2 = int(data.get("seed2", 99))
         steps = int(data.get("steps", 7))
-        resolution = int(data.get("resolution", NATIVE_RESOLUTION))
+        quality = str(data.get("quality", DEFAULT_QUALITY)).strip().lower()
+        if quality not in SUPPORTED_QUALITIES:
+            quality = DEFAULT_QUALITY
+
+        if "resolution" in data:
+            resolution = int(data["resolution"])
+        else:
+            resolution = 256 if quality == "high" else NATIVE_RESOLUTION
+
+        if resolution not in SUPPORTED_RESOLUTIONS:
+            return jsonify({"success": False, "error": f"Resolution must be one of {SUPPORTED_RESOLUTIONS}."}), 400
     except (ValueError, TypeError):
         return jsonify({"success": False, "error": "Invalid numerical parameters."}), 400
-        
+
     if steps < 3 or steps > 15:
         return jsonify({"success": False, "error": "Steps must be between 3 and 15."}), 400
-        
+
+    upscaler = data.get("upscaler")
+    gfpgan_weight = data.get("gfpgan_weight")
+    codeformer_weight = data.get("codeformer_weight")
+
     try:
         gan_service = GANService()
-        result = gan_service.interpolate_latent_space(seed1=seed1, seed2=seed2, steps=steps, resolution=resolution)
+        result = gan_service.interpolate_latent_space(
+            seed1=seed1,
+            seed2=seed2,
+            steps=steps,
+            resolution=resolution,
+            quality=quality,
+            upscaler=upscaler,
+            gfpgan_weight=gfpgan_weight,
+            codeformer_weight=codeformer_weight
+        )
         return jsonify({"success": True, "interpolation": result}), 200
     except Exception as e:
         return jsonify({"success": False, "error": f"Interpolation failed: {str(e)}"}), 500

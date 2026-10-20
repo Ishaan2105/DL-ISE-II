@@ -93,6 +93,18 @@
                 </div>
               </div>
 
+              <!-- Quality Mode Toggle -->
+              <div class="form-group">
+                <label class="form-label">
+                  <span>Synthesis Quality</span>
+                  <span class="text-muted" style="font-size: 0.75rem;">Truncation & Restoration</span>
+                </label>
+                <div class="btn-toggle-group" style="grid-template-columns: 1fr 1fr;">
+                  <button type="button" class="toggle-option quality-opt" data-quality="standard">Standard</button>
+                  <button type="button" class="toggle-option quality-opt active" data-quality="high">High (AI Restored)</button>
+                </div>
+              </div>
+
               <!-- Batch Size Toggle -->
               <div class="form-group">
                 <label class="form-label">Batch Size</label>
@@ -107,9 +119,11 @@
               <!-- Resolution Toggle -->
               <div class="form-group">
                 <label class="form-label">Output Resolution</label>
-                <div class="btn-toggle-group" style="grid-template-columns: 1fr 1fr;">
-                  <button type="button" class="toggle-option res-opt active" data-res="64">64 x 64 (Native)</button>
-                  <button type="button" class="toggle-option res-opt" data-res="128">128 x 128 (Bicubic)</button>
+                <div class="btn-toggle-group" style="grid-template-columns: repeat(4, 1fr);">
+                  <button type="button" class="toggle-option res-opt" data-res="64">64 (Native)</button>
+                  <button type="button" class="toggle-option res-opt" data-res="128">128</button>
+                  <button type="button" class="toggle-option res-opt active" data-res="256">256</button>
+                  <button type="button" class="toggle-option res-opt" data-res="512">512</button>
                 </div>
               </div>
 
@@ -197,9 +211,13 @@
               <div id="metadataBar" class="metadata-bar" style="display: none;">
                 <div class="meta-pill">Seed: <strong id="metaSeed">—</strong></div>
                 <div class="meta-pill">Res: <strong id="metaRes">—</strong></div>
+                <div class="meta-pill">Quality: <strong id="metaQuality">—</strong></div>
+                <div class="meta-pill">Upscaler: <strong id="metaUpscaler">—</strong></div>
                 <div class="meta-pill">Latency: <strong id="metaDuration">—</strong></div>
                 <div class="meta-pill">Device: <strong id="metaDevice">—</strong></div>
-                <div class="meta-pill">Model: <strong id="metaModel">—</strong></div>
+                <button id="btnToggleNative" class="btn btn-outline btn-xs" type="button" style="display: none; padding: 0.25rem 0.65rem; font-size: 0.75rem;">
+                  Show Native 64x64
+                </button>
               </div>
 
               <!-- Actions -->

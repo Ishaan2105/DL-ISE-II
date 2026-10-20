@@ -61,6 +61,13 @@ def create_app() -> Flask:
     app.register_blueprint(model_bp)
     app.register_blueprint(generation_bp)
     app.register_blueprint(gallery_bp)
+
+    # Warm up models in memory so subsequent requests pay no load cost
+    try:
+        from backend.services.gan_service import GANService
+        GANService().warmup_models()
+    except Exception as e:
+        logger.warning("Could not complete model warmup: %s", e)
     
     # HTML View Routes
     @app.route("/")
